@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Colors in image</title>
+</head>
+<body>
+<div id='app'></div>
+<script type="text/javascript">
+  const canvas = document.createElement('canvas');
+  const app = document.getElementById('app');
+  // No need of inserting the canvas into the DOM. It will just eat out rendering time.
+  // Uncomment it to debug/see what picture is being checked.
+  // app.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const images = [
+    'rect.png',
+    'rect_big_dirty.png',
+    'rect_big_single.png',
+    'rect_big_single_transparent.png',
+    'rect_big_white_transparent.png',
+  ];
+  const rectangles = [];
+  const errors = [];
+
+  let currentImageIndex = 0;
+  function checkNextImage() {
+    // In case we have a huge set of pictures, notify user that the script is still working
+    // every 500 processed pictures.
+    if (currentImageIndex % 500 === 0) {
+      console.log('Checking', currentImageIndex);
+    }
+
+    if (currentImageIndex >= images.length) {
+      console.log('Done!', rectangles);
+      return;
+    }
+
+    const image = new Image();
+    image.onload = checkImage;
+    image.onerror = onError;
+    image.src = `images/${images[currentImageIndex]}`;
+  }
+
+  function onError(error) {
+    errors.push({ error, image: images[currentImageIndex] });
+    currentImageIndex++;
+    checkNextImage();
+  }
+
+  function checkImage() {
+    canvas.width = this.naturalWidth;
+    canvas.height = this.naturalHeight;
+    ctx.drawImage(this, 0, 0);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (isSingleColorRectangle(data)) {
+      rectangles.push(images[currentImageIndex])
+    }
+    currentImageIndex++;
+    checkNextImage();
+  }
+
+  function isSingleColorRectangle(data) {
+    // Alpha channel can deviate a little bit on some pixels
+    const ALPHA_DIFF_THRESHOLD = 4;
+    const r = data[0];
+    const g = data[1];
+    const b = data[2];
+    const a = data[3];
+    for (let i = 0; i < data.length; i += 4) {
+      if (r !== data[i + 0] ||
+        g !== data[i + 1] ||
+        b !== data[i + 2] ||
+        Math.abs(a - data[i + 3]) > ALPHA_DIFF_THRESHOLD
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  console.log(`About to check ${images.length} images...`);
+  checkNextImage();
+</script>
+</body>
+</html>
